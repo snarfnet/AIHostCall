@@ -2,7 +2,7 @@ name: AIHostCall
 options:
   bundleIdPrefix: com.tokyonasu
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "16.0"
 
 settings:
   base:
