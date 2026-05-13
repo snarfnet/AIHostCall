@@ -97,6 +97,49 @@ jobs:
               print("  betaGroups=", beta_groups)
 
           included = build_response.json().get("included", [])
+          group_ids = set()
           for item in included:
               print("Included:", item.get("type"), item.get("id"), item.get("attributes", {}))
+              if item.get("type") == "betaGroups":
+                  group_ids.add(item["id"])
+
+          for group_id in sorted(group_ids):
+              testers_response = session.get(f"{base}/betaGroups/{group_id}/betaTesters?limit=200", timeout=30)
+              print("Group testers:", group_id, testers_response.status_code)
+              if testers_response.status_code >= 400:
+                  print(testers_response.text)
+                  testers_response.raise_for_status()
+              testers = testers_response.json().get("data", [])
+              if not testers:
+                  print("  No testers in group.")
+              for tester in testers:
+                  attrs = tester.get("attributes", {})
+                  print(
+                      "  Tester:",
+                      tester.get("id"),
+                      "email=", attrs.get("email"),
+                      "firstName=", attrs.get("firstName"),
+                      "lastName=", attrs.get("lastName"),
+                      "inviteType=", attrs.get("inviteType"),
+                  )
+
+                  tester_id = tester["id"]
+                  tester_groups = session.get(f"{base}/betaTesters/{tester_id}/betaGroups?limit=200", timeout=30)
+                  print("  Tester beta groups:", tester_groups.status_code)
+                  if tester_groups.status_code < 400:
+                      for tester_group in tester_groups.json().get("data", []):
+                          print("    group=", tester_group.get("id"), tester_group.get("attributes", {}))
+                  else:
+                      print(tester_groups.text)
+
+                  tester_builds = session.get(f"{base}/betaTesters/{tester_id}/builds?limit=200", timeout=30)
+                  print("  Tester builds:", tester_builds.status_code)
+                  if tester_builds.status_code < 400:
+                      tester_build_data = tester_builds.json().get("data", [])
+                      if not tester_build_data:
+                          print("    No builds visible for this tester.")
+                      for tester_build in tester_build_data:
+                          print("    build=", tester_build.get("id"), tester_build.get("attributes", {}))
+                  else:
+                      print(tester_builds.text)
           PY
