@@ -18,6 +18,8 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>あなたの声を文字起こしして、AIホストとの会話に使います。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
