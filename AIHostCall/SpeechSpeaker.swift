@@ -132,7 +132,7 @@ final class SpeechSpeaker: NSObject, ObservableObject, AVSpeechSynthesizerDelega
         if current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
             chunks.append(current)
         }
-        return chunks.prefix(3).map(String.init)
+        return Array(chunks.prefix(3))
     }
 
     private static func prepareForSpeech(_ text: String) -> String {
