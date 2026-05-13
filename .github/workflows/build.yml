@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
 
     steps:
     - uses: actions/checkout@v4
@@ -20,6 +23,15 @@ jobs:
 
     - name: Install XcodeGen
       run: brew install xcodegen
+
+    - name: Check required secrets
+      run: |
+        test -n "${{ secrets.DIST_CERT_BASE64 }}" || (echo "Missing DIST_CERT_BASE64" && exit 1)
+        test -n "${{ secrets.DIST_CERT_PASSWORD }}" || (echo "Missing DIST_CERT_PASSWORD" && exit 1)
+        test -n "${{ secrets.KEYCHAIN_PASSWORD }}" || (echo "Missing KEYCHAIN_PASSWORD" && exit 1)
+        test -n "${{ secrets.ASC_API_KEY_CONTENT }}" || (echo "Missing ASC_API_KEY_CONTENT" && exit 1)
+        test -n "$ASC_KEY_ID" || (echo "Missing ASC_KEY_ID" && exit 1)
+        test -n "$ASC_ISSUER_ID" || (echo "Missing ASC_ISSUER_ID" && exit 1)
 
     - name: Set build number
       run: |
@@ -50,7 +62,7 @@ jobs:
         ASC_API_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
       run: |
         mkdir -p ~/.appstoreconnect/private_keys
-        echo "$ASC_API_KEY_CONTENT" | base64 -D > ~/.appstoreconnect/private_keys/AuthKey_WDXGY9WX55.p8
+        echo "$ASC_API_KEY_CONTENT" | base64 -D > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
 
     - name: Archive
       run: |
@@ -62,9 +74,9 @@ jobs:
           CODE_SIGN_STYLE=Automatic \
           DEVELOPMENT_TEAM=83VGKGSQUH \
           -allowProvisioningUpdates \
-          -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_WDXGY9WX55.p8 \
-          -authenticationKeyID WDXGY9WX55 \
-          -authenticationKeyIssuerID 2be0734f-943a-4d61-9dc9-5d9045c46fec
+          -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+          -authenticationKeyID "$ASC_KEY_ID" \
+          -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
     - name: Export IPA
       run: |
@@ -73,6 +85,17 @@ jobs:
           -exportPath build/export \
           -exportOptionsPlist ExportOptions.plist \
           -allowProvisioningUpdates \
-          -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_WDXGY9WX55.p8 \
-          -authenticationKeyID WDXGY9WX55 \
-          -authenticationKeyIssuerID 2be0734f-943a-4d61-9dc9-5d9045c46fec
+          -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+          -authenticationKeyID "$ASC_KEY_ID" \
+          -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+    - name: Upload to TestFlight
+      run: |
+        IPA_PATH=$(find build/export -name "*.ipa" -print -quit)
+        test -n "$IPA_PATH" || (echo "IPA was not exported" && exit 1)
+        API_PRIVATE_KEYS_DIR="$HOME/.appstoreconnect/private_keys" xcrun altool \
+          --upload-app \
+          --type ios \
+          --file "$IPA_PATH" \
+          --apiKey "$ASC_KEY_ID" \
+          --apiIssuer "$ASC_ISSUER_ID"
