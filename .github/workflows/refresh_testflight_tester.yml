@@ -73,42 +73,51 @@ jobs:
           group_id = group["id"]
           print("Group:", group_id, group["attributes"].get("name"))
 
-          tester_query = urllib.parse.urlencode({"filter[email]": os.environ["TESTER_EMAIL"], "limit": "10"})
-          testers_response = session.get(f"{base}/betaTesters?{tester_query}", timeout=30)
-          fail_if_bad(testers_response)
-          testers = testers_response.json().get("data", [])
-          if not testers:
-              raise SystemExit("No beta tester found for email")
-          tester = testers[0]
+          group_testers_response = session.get(f"{base}/betaGroups/{group_id}/betaTesters?limit=200", timeout=30)
+          fail_if_bad(group_testers_response)
+          testers = group_testers_response.json().get("data", [])
+          tester = next((t for t in testers if t.get("attributes", {}).get("email") == os.environ["TESTER_EMAIL"]), None)
+          if not tester:
+              raise SystemExit("No beta tester found in group for email")
           tester_id = tester["id"]
           print("Tester:", tester_id, tester["attributes"].get("email"))
 
-          relation_body = {
+          build_query = urllib.parse.urlencode({
+              "filter[app]": app_id,
+              "filter[processingState]": "VALID",
+              "sort": "-uploadedDate",
+              "limit": "1",
+          })
+          builds_response = session.get(f"{base}/builds?{build_query}", timeout=30)
+          fail_if_bad(builds_response)
+          builds = builds_response.json().get("data", [])
+          if not builds:
+              raise SystemExit("No valid build found")
+          build = builds[0]
+          build_id = build["id"]
+          print("Latest build:", build_id, build["attributes"].get("version"), "minOsVersion=", build["attributes"].get("minOsVersion"))
+
+          build_relation_body = {
               "data": [
                   {
-                      "type": "betaTesters",
-                      "id": tester_id,
+                      "type": "builds",
+                      "id": build_id,
                   }
               ]
           }
 
-          delete_response = session.delete(
-              f"{base}/betaGroups/{group_id}/relationships/betaTesters",
-              data=json.dumps(relation_body),
+          assign_build_response = session.post(
+              f"{base}/betaTesters/{tester_id}/relationships/builds",
+              data=json.dumps(build_relation_body),
               timeout=30,
           )
-          print("Remove tester from group:", delete_response.status_code)
-          fail_if_bad(delete_response)
-
-          time.sleep(5)
-
-          add_response = session.post(
-              f"{base}/betaGroups/{group_id}/relationships/betaTesters",
-              data=json.dumps(relation_body),
-              timeout=30,
-          )
-          print("Add tester to group:", add_response.status_code)
-          fail_if_bad(add_response)
+          print("Assign latest build to tester:", assign_build_response.status_code)
+          if assign_build_response.status_code not in (204, 409):
+              print(assign_build_response.text)
+              assign_build_response.raise_for_status()
+          if assign_build_response.status_code == 409:
+              print(assign_build_response.text)
+              print("Build may already be assigned or tester state blocks direct assignment.")
 
           tester_builds = session.get(f"{base}/betaTesters/{tester_id}/builds?limit=200", timeout=30)
           print("Tester builds after refresh:", tester_builds.status_code)
