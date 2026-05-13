@@ -1,0 +1,104 @@
+name: Resend TestFlight Invite
+
+on:
+  workflow_dispatch:
+
+jobs:
+  resend:
+    runs-on: macos-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      BUNDLE_IDENTIFIER: com.tokyonasu.aihostcall
+      TESTER_EMAIL: tokyonasu@yahoo.co.jp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resend beta tester invite
+        env:
+          ASC_API_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install PyJWT cryptography requests
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import time
+          import urllib.parse
+
+          import jwt
+          import requests
+
+          def req(session, method, url, ok=(200, 201, 204), **kwargs):
+              response = session.request(method, url, timeout=30, **kwargs)
+              print(method, url, response.status_code)
+              if response.status_code not in ok:
+                  print(response.text)
+                  response.raise_for_status()
+              return response
+
+          token = jwt.encode(
+              {
+                  "iss": os.environ["ASC_ISSUER_ID"],
+                  "iat": int(time.time()),
+                  "exp": int(time.time()) + 20 * 60,
+                  "aud": "appstoreconnect-v1",
+              },
+              base64.b64decode(os.environ["ASC_API_KEY_CONTENT"]).decode("utf-8"),
+              algorithm="ES256",
+              headers={"kid": os.environ["ASC_KEY_ID"], "typ": "JWT"},
+          )
+
+          session = requests.Session()
+          session.headers.update({
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+          })
+          base = "https://api.appstoreconnect.apple.com/v1"
+
+          app_query = urllib.parse.urlencode({"filter[bundleId]": os.environ["BUNDLE_IDENTIFIER"]})
+          apps = req(session, "GET", f"{base}/apps?{app_query}").json().get("data", [])
+          if not apps:
+              raise SystemExit("No app found")
+          app = apps[0]
+          app_id = app["id"]
+          print("App:", app_id, app["attributes"].get("name"))
+
+          tester_query = urllib.parse.urlencode({"filter[email]": os.environ["TESTER_EMAIL"], "limit": "20"})
+          testers = req(session, "GET", f"{base}/betaTesters?{tester_query}").json().get("data", [])
+          if not testers:
+              raise SystemExit("No tester found")
+          for tester in testers:
+              tester_id = tester["id"]
+              print("Tester:", tester_id, tester["attributes"].get("email"))
+
+              body = {
+                  "data": {
+                      "type": "betaTesterInvitations",
+                      "relationships": {
+                          "app": {
+                              "data": {
+                                  "type": "apps",
+                                  "id": app_id,
+                              }
+                          },
+                          "betaTester": {
+                              "data": {
+                                  "type": "betaTesters",
+                                  "id": tester_id,
+                              }
+                          },
+                      },
+                  }
+              }
+              invite = session.post(f"{base}/betaTesterInvitations", data=json.dumps(body), timeout=30)
+              print("Resend invite:", invite.status_code)
+              if invite.status_code not in (201, 204, 409):
+                  print(invite.text)
+                  invite.raise_for_status()
+              if invite.status_code == 409:
+                  print(invite.text)
+          PY
