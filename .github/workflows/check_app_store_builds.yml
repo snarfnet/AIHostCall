@@ -1,0 +1,92 @@
+name: Check App Store Builds
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: macos-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      BUNDLE_IDENTIFIER: com.tokyonasu.aihostcall
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check App Store Connect builds
+        env:
+          ASC_API_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
+        run: |
+          test -n "$ASC_API_KEY_CONTENT" || (echo "Missing ASC_API_KEY_CONTENT" && exit 1)
+          test -n "$ASC_KEY_ID" || (echo "Missing ASC_KEY_ID" && exit 1)
+          test -n "$ASC_ISSUER_ID" || (echo "Missing ASC_ISSUER_ID" && exit 1)
+
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install PyJWT cryptography requests
+          python - <<'PY'
+          import base64
+          import os
+          import time
+          import urllib.parse
+
+          import jwt
+          import requests
+
+          token = jwt.encode(
+              {
+                  "iss": os.environ["ASC_ISSUER_ID"],
+                  "iat": int(time.time()),
+                  "exp": int(time.time()) + 20 * 60,
+                  "aud": "appstoreconnect-v1",
+              },
+              base64.b64decode(os.environ["ASC_API_KEY_CONTENT"]).decode("utf-8"),
+              algorithm="ES256",
+              headers={"kid": os.environ["ASC_KEY_ID"], "typ": "JWT"},
+          )
+
+          session = requests.Session()
+          session.headers.update({"Authorization": f"Bearer {token}"})
+          base = "https://api.appstoreconnect.apple.com/v1"
+
+          app_query = urllib.parse.urlencode({"filter[bundleId]": os.environ["BUNDLE_IDENTIFIER"]})
+          app_response = session.get(f"{base}/apps?{app_query}", timeout=30)
+          print("Apps:", app_response.status_code)
+          if app_response.status_code >= 400:
+              print(app_response.text)
+              app_response.raise_for_status()
+
+          apps = app_response.json().get("data", [])
+          if not apps:
+              raise SystemExit("No App Store Connect app found for this bundle identifier")
+
+          app = apps[0]
+          print("App ID:", app["id"])
+          print("App Name:", app["attributes"].get("name"))
+
+          build_query = urllib.parse.urlencode({
+              "filter[app]": app["id"],
+              "sort": "-uploadedDate",
+              "limit": "10",
+          })
+          build_response = session.get(f"{base}/builds?{build_query}", timeout=30)
+          print("Builds:", build_response.status_code)
+          if build_response.status_code >= 400:
+              print(build_response.text)
+              build_response.raise_for_status()
+
+          builds = build_response.json().get("data", [])
+          if not builds:
+              print("No builds found yet.")
+          for build in builds:
+              attrs = build.get("attributes", {})
+              print(
+                  "Build:",
+                  "version=", attrs.get("version"),
+                  "uploadedDate=", attrs.get("uploadedDate"),
+                  "processingState=", attrs.get("processingState"),
+                  "expired=", attrs.get("expired"),
+                  "usesNonExemptEncryption=", attrs.get("usesNonExemptEncryption"),
+              )
+          PY
