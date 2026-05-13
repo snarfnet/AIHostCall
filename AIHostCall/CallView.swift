@@ -12,6 +12,9 @@ struct CallView: View {
     @State private var session: ConversationSession
     @State private var hostReply = "今日はどうしたの？声、聞かせて。"
     @State private var isThinking = false
+    @State private var silenceTask: Task<Void, Never>?
+    @State private var lastSubmittedText = ""
+    @State private var isAutoListening = true
 
     private let aiService = HostAIService()
 
@@ -26,90 +29,113 @@ struct CallView: View {
         ZStack {
             HostBackdrop()
 
-            VStack(spacing: 18) {
-                header
+            ScrollView {
+                VStack(spacing: 14) {
+                    header
 
-                HostPanel {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("あなた")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(HostCallDesign.softGold)
-                        Text(recognizer.transcript.isEmpty ? "マイクを押して話してください" : recognizer.transcript)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(recognizer.transcript.isEmpty ? HostCallDesign.subtext : HostCallDesign.text)
-                            .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
-                    }
-                }
-
-                HostPanel {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text(hostType.shortName)
+                    HostPanel {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("あなた")
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(HostCallDesign.softGold)
-                            Spacer()
-                            if isThinking {
-                                Text("考え中…")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(HostCallDesign.gold)
-                            } else if speaker.isSpeaking {
-                                Text("再生中")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(HostCallDesign.gold)
-                            }
+                            Text(recognizer.transcript.isEmpty ? "そのまま話しかけてください" : recognizer.transcript)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(recognizer.transcript.isEmpty ? HostCallDesign.subtext : HostCallDesign.text)
+                                .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
                         }
-
-                        Text(hostReply)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(HostCallDesign.text)
-                            .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
                     }
+
+                    HostPanel {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(hostType.shortName)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(HostCallDesign.softGold)
+                                Spacer()
+                                if isThinking {
+                                    Text("考え中…")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(HostCallDesign.gold)
+                                } else if speaker.isSpeaking {
+                                    Text("再生中")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(HostCallDesign.gold)
+                                }
+                            }
+
+                            Text(hostReply)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(HostCallDesign.text)
+                                .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
+                        }
+                    }
+
+                    Button {
+                        toggleListeningMode()
+                    } label: {
+                        Image(systemName: micIconName)
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(isAutoListening ? .black : .white)
+                            .frame(width: 112, height: 112)
+                            .background(isAutoListening ? HostCallDesign.gold : Color.red.opacity(0.88))
+                            .clipShape(Circle())
+                            .shadow(color: HostCallDesign.gold.opacity(0.42), radius: 24, y: 8)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(isAutoListening ? "自動会話を一時停止" : "自動会話を再開")
+
+                    if let errorMessage = recognizer.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                    } else {
+                        Text(statusText)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(HostCallDesign.subtext)
+                    }
+
+                    voiceControls
+
+                    Button {
+                        finishCall()
+                    } label: {
+                        Label("会話終了", systemImage: "phone.down.fill")
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
                 }
-
-                Spacer(minLength: 8)
-
-                Button {
-                    toggleRecording()
-                } label: {
-                    Image(systemName: recognizer.isRecording ? "stop.fill" : "mic.fill")
-                        .font(.system(size: 44, weight: .bold))
-                        .foregroundStyle(recognizer.isRecording ? .white : .black)
-                        .frame(width: 126, height: 126)
-                        .background(recognizer.isRecording ? Color.red.opacity(0.88) : HostCallDesign.gold)
-                        .clipShape(Circle())
-                        .shadow(color: HostCallDesign.gold.opacity(0.42), radius: 28, y: 10)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(recognizer.isRecording ? "録音停止" : "録音開始")
-
-                if let errorMessage = recognizer.errorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                } else {
-                    Text(recognizer.isRecording ? "話し終わったら停止" : "押して話す")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(HostCallDesign.subtext)
-                }
-
-                voiceControls
-
-                Button {
-                    finishCall()
-                } label: {
-                    Label("会話終了", systemImage: "phone.down.fill")
-                }
-                .buttonStyle(SecondaryButtonStyle())
+                .padding(20)
+                .padding(.bottom, 28)
             }
-            .padding(20)
         }
         .task {
             await recognizer.requestAuthorization()
             speaker.apply(profile: hostType.voiceProfile)
             speaker.speak(hostReply)
         }
+        .onChange(of: recognizer.transcript) { newValue in
+            scheduleAutoReply(for: newValue)
+        }
+        .onChange(of: speaker.isSpeaking) { speaking in
+            if speaking == false {
+                restartListeningIfNeeded()
+            }
+        }
         .navigationBarBackButtonHidden(true)
+    }
+
+    private var micIconName: String {
+        if isThinking { return "ellipsis" }
+        if speaker.isSpeaking { return "speaker.wave.2.fill" }
+        if recognizer.isRecording { return "waveform" }
+        return isAutoListening ? "mic.fill" : "pause.fill"
+    }
+
+    private var statusText: String {
+        if isThinking { return "返答を考えています" }
+        if speaker.isSpeaking { return "話し終わったら自動で聞きます" }
+        if recognizer.isRecording { return "話しかけるだけでOK" }
+        return isAutoListening ? "聞き取りを準備中" : "一時停止中"
     }
 
     private var header: some View {
@@ -140,50 +166,79 @@ struct CallView: View {
 
     private var voiceControls: some View {
         HostPanel {
-            VStack(spacing: 12) {
-                controlSlider(title: "速さ", value: $speaker.rate, range: 0.42...0.62)
-                controlSlider(title: "高さ", value: $speaker.pitch, range: 0.85...1.25)
+            VStack(spacing: 8) {
+                controlSlider(title: "速さ", value: $speaker.rate, range: 0.36...0.52)
+                controlSlider(title: "高さ", value: $speaker.pitch, range: 0.72...1.06)
                 controlSlider(title: "音量", value: $speaker.volume, range: 0.3...1.0)
-                HStack {
+                HStack(spacing: 8) {
                     Text("音声")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HostCallDesign.subtext)
-                        .frame(width: 42, alignment: .leading)
+                        .frame(width: 38, alignment: .leading)
                     Text(speaker.selectedVoiceName)
                         .font(.caption)
                         .foregroundStyle(HostCallDesign.subtext)
                         .lineLimit(1)
-                    Spacer()
+                    Spacer(minLength: 0)
                 }
             }
         }
     }
 
     private func controlSlider(title: String, value: Binding<Float>, range: ClosedRange<Float>) -> some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(title)
                 .font(.caption.weight(.bold))
                 .foregroundStyle(HostCallDesign.subtext)
-                .frame(width: 42, alignment: .leading)
+                .frame(width: 38, alignment: .leading)
             Slider(value: value, in: range)
                 .tint(HostCallDesign.gold)
         }
     }
 
-    private func toggleRecording() {
-        if recognizer.isRecording {
-            recognizer.stopRecording()
-            Task { await sendCurrentTranscript() }
+    private func toggleListeningMode() {
+        isAutoListening.toggle()
+        if isAutoListening {
+            restartListeningIfNeeded()
         } else {
-            speaker.stop()
-            recognizer.startRecording()
+            silenceTask?.cancel()
+            recognizer.stopRecording()
         }
+    }
+
+    private func scheduleAutoReply(for transcript: String) {
+        silenceTask?.cancel()
+
+        let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isAutoListening, recognizer.isRecording, speaker.isSpeaking == false, isThinking == false else { return }
+        guard text.count >= 2, text != lastSubmittedText else { return }
+
+        silenceTask = Task {
+            try? await Task.sleep(nanoseconds: 1_150_000_000)
+            guard Task.isCancelled == false else { return }
+
+            await MainActor.run {
+                let current = recognizer.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard current == text, current != lastSubmittedText else { return }
+                Task { await sendCurrentTranscript() }
+            }
+        }
+    }
+
+    private func restartListeningIfNeeded() {
+        guard isAutoListening, isThinking == false, speaker.isSpeaking == false else { return }
+        guard recognizer.isRecording == false else { return }
+        recognizer.resetTranscript()
+        recognizer.startRecording()
     }
 
     private func sendCurrentTranscript() async {
         let text = recognizer.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard text.isEmpty == false else { return }
+        guard text.isEmpty == false, text != lastSubmittedText else { return }
 
+        silenceTask?.cancel()
+        lastSubmittedText = text
+        recognizer.stopRecording()
         let userMessage = ConversationMessage(role: .user, text: text)
         session.messages.append(userMessage)
         isThinking = true

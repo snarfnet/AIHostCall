@@ -48,6 +48,7 @@ targets:
         UIUserInterfaceStyle: Dark
         NSMicrophoneUsageDescription: "あなたの声を文字起こしして、AIホストとの会話に使います。"
         NSSpeechRecognitionUsageDescription: "話した内容を端末上で文字に変換するために使います。"
+        NSPersonalVoiceUsageDescription: "端末にPersonal Voiceがある場合、より自然な読み上げに使います。"
         NSUserTrackingUsageDescription: "広告の表示と効果測定のために使用します。"
         GADApplicationIdentifier: "ca-app-pub-9404799280370656~5347257685"
         SKAdNetworkItems:

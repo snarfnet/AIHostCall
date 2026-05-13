@@ -47,15 +47,15 @@ enum HostType: String, CaseIterable, Identifiable, Codable, Hashable {
     var voiceProfile: HostVoiceProfile {
         switch self {
         case .gentle:
-            HostVoiceProfile(rate: 0.48, pitch: 0.96, volume: 0.95)
+            HostVoiceProfile(rate: 0.42, pitch: 0.88, volume: 0.96)
         case .strong:
-            HostVoiceProfile(rate: 0.5, pitch: 0.88, volume: 0.98)
+            HostVoiceProfile(rate: 0.43, pitch: 0.78, volume: 0.98)
         case .dogLike:
-            HostVoiceProfile(rate: 0.56, pitch: 1.14, volume: 0.96)
+            HostVoiceProfile(rate: 0.48, pitch: 1.02, volume: 0.96)
         case .menchika:
-            HostVoiceProfile(rate: 0.53, pitch: 1.08, volume: 0.94)
+            HostVoiceProfile(rate: 0.46, pitch: 0.95, volume: 0.94)
         case .president:
-            HostVoiceProfile(rate: 0.47, pitch: 0.9, volume: 0.96)
+            HostVoiceProfile(rate: 0.41, pitch: 0.8, volume: 0.96)
         }
     }
 }

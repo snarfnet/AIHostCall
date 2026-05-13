@@ -52,7 +52,7 @@ final class SpeechRecognizer: ObservableObject {
 
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
+            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
             let request = SFSpeechAudioBufferRecognitionRequest()
@@ -87,6 +87,10 @@ final class SpeechRecognizer: ObservableObject {
             errorMessage = "録音を開始できませんでした。"
             stopRecording()
         }
+    }
+
+    func resetTranscript() {
+        transcript = ""
     }
 
     func stopRecording() {

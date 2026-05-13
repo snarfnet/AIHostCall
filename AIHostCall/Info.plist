@@ -26,6 +26,8 @@
 	<string>あなたの声を文字起こしして、AIホストとの会話に使います。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>話した内容を端末上で文字に変換するために使います。</string>
+	<key>NSPersonalVoiceUsageDescription</key>
+	<string>端末にPersonal Voiceがある場合、より自然な読み上げに使います。</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>広告の表示と効果測定のために使用します。</string>
 	<key>GADApplicationIdentifier</key>
