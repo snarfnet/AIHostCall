@@ -146,7 +146,7 @@ def home_screen(size, hero):
     paste_hero(canvas, hero, margin, y, w - margin * 2, int(h * 0.36), int(w * 0.04))
 
     y += int(h * 0.39)
-    text(draw, (margin, y), "AIホストと通話", int(w * 0.075), WHITE, bold=True, max_width=w - margin * 2)
+    text(draw, (margin, y), "ホスコール", int(w * 0.075), WHITE, bold=True, max_width=w - margin * 2)
     y += int(w * 0.095)
     multiline(draw, (margin, y), "声で話すと、AIホストがすぐ返す。無料ではじめる会話練習。", int(w * 0.036), MUTED, max_width=w - margin * 2)
     y += int(w * 0.14)

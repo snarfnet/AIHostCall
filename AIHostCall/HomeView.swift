@@ -12,7 +12,7 @@ struct HomeView: View {
                 Spacer(minLength: 18)
 
                 VStack(spacing: 10) {
-                    Text("AIホストと通話")
+                    Text("ホスコール")
                         .font(.system(size: 38, weight: .bold, design: .rounded))
                         .foregroundStyle(HostCallDesign.text)
                         .multilineTextAlignment(.center)

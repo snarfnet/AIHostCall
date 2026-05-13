@@ -1,4 +1,4 @@
-# AIホストと通話
+# ホスコール
 
 SwiftUI製の音声会話練習MVPです。Apple Speech frameworkで日本語の音声入力を文字起こしし、MockHostAIが短く返答します。返答はAVSpeechSynthesizerで読み上げます。
 

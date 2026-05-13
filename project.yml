@@ -33,8 +33,8 @@ targets:
     info:
       path: AIHostCall/Info.plist
       properties:
-        CFBundleName: "AIホストと通話"
-        CFBundleDisplayName: "AIホストと通話"
+        CFBundleName: "ホスコール"
+        CFBundleDisplayName: "ホスコール"
         CFBundleIconName: AppIcon
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
