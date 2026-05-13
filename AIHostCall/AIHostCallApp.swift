@@ -7,7 +7,7 @@ struct AIHostCallApp: App {
     init() {
         GADMobileAds.sharedInstance().start()
         Task { @MainActor in
-            requestTrackingAuthorizationIfNeeded()
+            Self.requestTrackingAuthorizationIfNeeded()
         }
     }
 
@@ -17,7 +17,7 @@ struct AIHostCallApp: App {
         }
     }
 
-    private func requestTrackingAuthorizationIfNeeded() {
+    private static func requestTrackingAuthorizationIfNeeded() {
         guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else { return }
         ATTrackingManager.requestTrackingAuthorization { _ in }
     }
