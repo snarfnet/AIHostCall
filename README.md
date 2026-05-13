@@ -11,6 +11,7 @@ SwiftUI製の音声会話練習MVPです。Apple Speech frameworkで日本語の
 - 将来はGemmaProcessorにGoogle AI Edge / MediaPipe LLM Inference APIを接続
 - 端末内の日本語音声から高品質な声を自動選択
 - ホストタイプごとに読み上げの速さ・高さ・音量を調整
+- AdMobバナー広告を上下に表示
 
 ## 実行
 
