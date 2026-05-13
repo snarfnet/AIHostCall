@@ -67,6 +67,7 @@ jobs:
 
           build_query = urllib.parse.urlencode({
               "filter[app]": app["id"],
+              "include": "buildBetaDetail,betaGroups",
               "sort": "-uploadedDate",
               "limit": "10",
           })
@@ -89,4 +90,13 @@ jobs:
                   "expired=", attrs.get("expired"),
                   "usesNonExemptEncryption=", attrs.get("usesNonExemptEncryption"),
               )
+              relationships = build.get("relationships", {})
+              beta_detail = relationships.get("buildBetaDetail", {}).get("data")
+              beta_groups = relationships.get("betaGroups", {}).get("data", [])
+              print("  betaDetail=", beta_detail)
+              print("  betaGroups=", beta_groups)
+
+          included = build_response.json().get("included", [])
+          for item in included:
+              print("Included:", item.get("type"), item.get("id"), item.get("attributes", {}))
           PY
