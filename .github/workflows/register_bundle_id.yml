@@ -63,10 +63,7 @@ jobs:
           })
 
           base = "https://api.appstoreconnect.apple.com/v1"
-          query = urllib.parse.urlencode({
-              "filter[identifier]": bundle_identifier,
-              "include": "app",
-          })
+          query = urllib.parse.urlencode({"filter[identifier]": bundle_identifier})
           response = session.get(f"{base}/bundleIds?{query}", timeout=30)
           print("List Bundle IDs:", response.status_code)
           if response.status_code >= 400:
@@ -101,18 +98,19 @@ jobs:
               print("Resource ID:", bundle["id"])
               print("Identifier:", bundle["attributes"]["identifier"])
 
-          app_response = session.get(f"{base}/bundleIds/{bundle['id']}/app", timeout=30)
-          print("Read associated App:", app_response.status_code)
-          if app_response.status_code == 200:
-              app_data = app_response.json().get("data")
-              if app_data:
-                  print("Associated App ID:", app_data["id"])
-                  print("Associated App Name:", app_data["attributes"].get("name"))
-              else:
-                  print("No App Store Connect app is associated with this Bundle ID yet.")
-          elif app_response.status_code == 404:
-              print("No App Store Connect app is associated with this Bundle ID yet.")
-          else:
+          apps_query = urllib.parse.urlencode({"filter[bundleId]": bundle_identifier})
+          app_response = session.get(f"{base}/apps?{apps_query}", timeout=30)
+          print("List associated Apps:", app_response.status_code)
+          if app_response.status_code >= 400:
               print(app_response.text)
               app_response.raise_for_status()
+
+          apps = app_response.json().get("data", [])
+          if apps:
+              app = apps[0]
+              print("Associated App ID:", app["id"])
+              print("Associated App Name:", app["attributes"].get("name"))
+          else:
+              print("No App Store Connect app is associated with this Bundle ID yet.")
+              print("Create the iOS app once in App Store Connect with this Bundle ID, then rerun the TestFlight workflow.")
           PY

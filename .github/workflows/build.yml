@@ -91,6 +91,7 @@ jobs:
 
     - name: Upload to TestFlight
       run: |
+        set -o pipefail
         IPA_PATH=$(find build/export -name "*.ipa" -print -quit)
         test -n "$IPA_PATH" || (echo "IPA was not exported" && exit 1)
         API_PRIVATE_KEYS_DIR="$HOME/.appstoreconnect/private_keys" xcrun altool \
@@ -98,4 +99,8 @@ jobs:
           --type ios \
           --file "$IPA_PATH" \
           --apiKey "$ASC_KEY_ID" \
-          --apiIssuer "$ASC_ISSUER_ID"
+          --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee upload.log
+        if grep -q "ERROR:" upload.log; then
+          echo "TestFlight upload reported an error"
+          exit 1
+        fi
