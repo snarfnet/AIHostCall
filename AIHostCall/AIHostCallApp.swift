@@ -5,7 +5,7 @@ import AppTrackingTransparency
 @main
 struct AIHostCallApp: App {
     init() {
-        MobileAds.shared.start()
+        GADMobileAds.sharedInstance().start()
         Task { @MainActor in
             requestTrackingAuthorizationIfNeeded()
         }

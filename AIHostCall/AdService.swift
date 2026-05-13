@@ -36,21 +36,21 @@ struct AdMobBannerSlotView: View {
 private struct AdMobBannerView: UIViewRepresentable {
     let unitID: String
 
-    func makeUIView(context: Context) -> BannerView {
-        let banner = BannerView(adSize: AdSizeBanner)
+    func makeUIView(context: Context) -> GADBannerView {
+        let banner = GADBannerView(adSize: GADAdSizeBanner)
         banner.adUnitID = unitID
 
         DispatchQueue.main.async {
             if let rootViewController = UIApplication.shared.activeRootViewController {
                 banner.rootViewController = rootViewController
-                banner.load(Request())
+                banner.load(GADRequest())
             }
         }
 
         return banner
     }
 
-    func updateUIView(_ uiView: BannerView, context: Context) {}
+    func updateUIView(_ uiView: GADBannerView, context: Context) {}
 }
 
 private extension UIApplication {
