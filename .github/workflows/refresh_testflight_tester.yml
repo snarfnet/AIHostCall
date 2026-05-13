@@ -1,0 +1,119 @@
+name: Refresh TestFlight Tester
+
+on:
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: macos-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      BUNDLE_IDENTIFIER: com.tokyonasu.aihostcall
+      TESTER_EMAIL: tokyonasu@yahoo.co.jp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refresh tester group assignment
+        env:
+          ASC_API_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install PyJWT cryptography requests
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import time
+          import urllib.parse
+
+          import jwt
+          import requests
+
+          def fail_if_bad(response):
+              if response.status_code >= 400 and response.status_code != 404:
+                  print(response.text)
+                  response.raise_for_status()
+
+          token = jwt.encode(
+              {
+                  "iss": os.environ["ASC_ISSUER_ID"],
+                  "iat": int(time.time()),
+                  "exp": int(time.time()) + 20 * 60,
+                  "aud": "appstoreconnect-v1",
+              },
+              base64.b64decode(os.environ["ASC_API_KEY_CONTENT"]).decode("utf-8"),
+              algorithm="ES256",
+              headers={"kid": os.environ["ASC_KEY_ID"], "typ": "JWT"},
+          )
+
+          session = requests.Session()
+          session.headers.update({
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+          })
+          base = "https://api.appstoreconnect.apple.com/v1"
+
+          app_query = urllib.parse.urlencode({"filter[bundleId]": os.environ["BUNDLE_IDENTIFIER"]})
+          app_response = session.get(f"{base}/apps?{app_query}", timeout=30)
+          fail_if_bad(app_response)
+          app = app_response.json()["data"][0]
+          app_id = app["id"]
+          print("App:", app_id, app["attributes"].get("name"))
+
+          groups_query = urllib.parse.urlencode({"filter[app]": app_id, "limit": "200"})
+          groups_response = session.get(f"{base}/betaGroups?{groups_query}", timeout=30)
+          fail_if_bad(groups_response)
+          groups = groups_response.json().get("data", [])
+          group = next((g for g in groups if g.get("attributes", {}).get("isInternalGroup")), None)
+          if not group:
+              raise SystemExit("No internal beta group found")
+          group_id = group["id"]
+          print("Group:", group_id, group["attributes"].get("name"))
+
+          tester_query = urllib.parse.urlencode({"filter[email]": os.environ["TESTER_EMAIL"], "limit": "10"})
+          testers_response = session.get(f"{base}/betaTesters?{tester_query}", timeout=30)
+          fail_if_bad(testers_response)
+          testers = testers_response.json().get("data", [])
+          if not testers:
+              raise SystemExit("No beta tester found for email")
+          tester = testers[0]
+          tester_id = tester["id"]
+          print("Tester:", tester_id, tester["attributes"].get("email"))
+
+          relation_body = {
+              "data": [
+                  {
+                      "type": "betaTesters",
+                      "id": tester_id,
+                  }
+              ]
+          }
+
+          delete_response = session.delete(
+              f"{base}/betaGroups/{group_id}/relationships/betaTesters",
+              data=json.dumps(relation_body),
+              timeout=30,
+          )
+          print("Remove tester from group:", delete_response.status_code)
+          fail_if_bad(delete_response)
+
+          time.sleep(5)
+
+          add_response = session.post(
+              f"{base}/betaGroups/{group_id}/relationships/betaTesters",
+              data=json.dumps(relation_body),
+              timeout=30,
+          )
+          print("Add tester to group:", add_response.status_code)
+          fail_if_bad(add_response)
+
+          tester_builds = session.get(f"{base}/betaTesters/{tester_id}/builds?limit=200", timeout=30)
+          print("Tester builds after refresh:", tester_builds.status_code)
+          fail_if_bad(tester_builds)
+          for build in tester_builds.json().get("data", []):
+              attrs = build.get("attributes", {})
+              print("Build visible:", attrs.get("version"), "minOsVersion=", attrs.get("minOsVersion"))
+          PY
