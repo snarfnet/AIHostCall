@@ -1,0 +1,41 @@
+name: AIHostCall
+options:
+  bundleIdPrefix: com.tokyonasu
+  deploymentTarget:
+    iOS: "18.0"
+
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    TARGETED_DEVICE_FAMILY: "1"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    PRODUCT_BUNDLE_IDENTIFIER: com.tokyonasu.aihostcall
+    DEVELOPMENT_TEAM: 83VGKGSQUH
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  AIHostCall:
+    type: application
+    platform: iOS
+    sources: [AIHostCall]
+    settings:
+      base:
+        PRODUCT_NAME: AIHostCall
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: AIHostCall/Info.plist
+      properties:
+        CFBundleName: "AIホストと通話"
+        CFBundleDisplayName: "AIホストと通話"
+        CFBundleIconName: AppIcon
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIUserInterfaceStyle: Dark
+        NSMicrophoneUsageDescription: "あなたの声を文字起こしして、AIホストとの会話に使います。"
+        NSSpeechRecognitionUsageDescription: "話した内容を端末上で文字に変換するために使います。"
