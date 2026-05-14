@@ -10,7 +10,7 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       BUNDLE_IDENTIFIER: com.tokyonasu.boatracepredictor
-      BUNDLE_NAME: 舟読み
+      BUNDLE_NAME: BoatRacePredictor
 
     steps:
       - uses: actions/checkout@v4
